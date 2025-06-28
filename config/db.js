@@ -1,23 +1,26 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
-const connectDB = async () => {
-const uri = process.env.MONGO_URI;
+const MONGODB_URI = process.env.MONGODB_URI;
 
-if (!uri) {
-console.error('❌ Environment variable MONGO_URI tidak ditemukan.');
-process.exit(1);
+if (!MONGODB_URI) {
+  throw new Error('❌ MONGODB_URI belum diset di environment.');
 }
 
-try {
-await mongoose.connect(uri, {
-useNewUrlParser: true,
-useUnifiedTopology: true,
-});
-console.log('✅ MongoDB berhasil terkoneksi.');
-} catch (err) {
-console.error('❌ Gagal terkoneksi ke MongoDB:', err.message);
-process.exit(1);
-}
-};
+let cached = global.mongoose;
 
-module.exports = connectDB;
+if (!cached) {
+  cached = global.mongoose = { conn: null, promise: null };
+}
+
+async function dbConnect() {
+  if (cached.conn) return cached.conn;
+  if (!cached.promise) {
+    cached.promise = mongoose.connect(MONGODB_URI, {
+      bufferCommands: false
+    }).then((mongoose) => mongoose);
+  }
+  cached.conn = await cached.promise;
+  return cached.conn;
+}
+
+export default dbConnect;
